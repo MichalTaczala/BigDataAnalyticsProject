@@ -13,8 +13,15 @@ print(len(data))
 for flight in data[:LIMIT]:
     icao24_temp = extract_six_char_string_values(flight)
     
-    flight_data = api.get_track_by_aircraft(icao24_temp, START_TIME)
+    flight_data = api.get_track_by_aircraft(icao24_temp[0], START_TIME)
+    #print(icao24_temp[0])
+    print(flight_data)
     if flight_data is not None:
         save_flight_data_to_csv(flight_data, NAME_OF_OUTPUT_FILE)
-    print(icao24_temp)
-    print(flight_data)
+    else:
+        flight_data = api.get_track_by_aircraft(icao24_temp[0], END_TIME)
+        print(flight_data)
+        if flight_data is not None:
+            save_flight_data_to_csv(flight_data, NAME_OF_OUTPUT_FILE)
+            print(flight_data)
+    
