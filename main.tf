@@ -58,17 +58,29 @@ resource "google_compute_instance" "nifi_instance" {
   # EOT
 
   metadata_startup_script = <<-EOT
+    #! /bin/bash
     sudo su
-    apt upadate
-    apt install -y openjdk-11-jdk unzip
-    wget https://archive.apache.org/dist/nifi/1.27.0/nifi-1.27.0-bin.zip
+    apt-get update -y
+    apt-get install -y openjdk-11-jdk unzip
+    echo "download nifi"
+    sudo wget https://archive.apache.org/dist/nifi/1.27.0/nifi-1.27.0-bin.zip
+    echo "unzip nifi"
     unzip nifi-1.27.0-bin.zip
-
+    echo "unzipped"
     
-
+    echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> ~/.profile
     echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> /etc/profile.d/jdk.sh
+    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
     echo "export PATH=\$JAVA_HOME/bin:\$PATH" >> /etc/profile.d/jdk.sh
-    source /etc/profile.d/jdk.sh
+    source ~/.profile
+    echo "export NIFI_HOME=/opt/nifi" >> ~/.profile
+    source ~/.profile
+    echo "export PATH=\$PATH:\$NIFI_HOME/bin" >> ~/.profile
+    source ~/.profile
+    sudo sed -i 's/^nifi\.web\.http\.port=.*/nifi.web.http.port=8080/' /nifi-1.27.0/conf/nifi.properties
+    sudo sed -i '/^nifi\.web\.https\.port=/d' /nifi-1.27.0/conf/nifi.properties
+    sudo sed -i '/^nifi\.web\.https\.host=/d' /nifi-1.27.0/conf/nifi.properties
+    sudo sed -i 's/^nifi\.remote\.input\.secure=.*/nifi.remote.input.secure=false/' /nifi-1.27.0/conf/nifi.properties
 
     cd nifi-1.27.0
     bin/nifi.sh start
@@ -109,4 +121,31 @@ resource "google_project_iam_member" "nifi_service_account_iam" {
 }
 resource "google_service_account_key" "gcp_tests" {
     service_account_id = google_service_account.nifi_service_account.name
+}
+resource "google_managed_kafka_cluster" "example" {
+  cluster_id = "my-cluster"
+  location = var.region
+  capacity_config {
+    vcpu_count = 3
+    memory_bytes = 3221225472
+  }
+  gcp_config {
+    access_config {
+      network_configs {
+        subnet = "projects/${data.google_project.project.number}/regions/${var.region}/subnetworks/default"
+      }
+    }
+  }
+  rebalance_config {
+    mode = "NO_REBALANCE"
+  }
+  labels = {
+    key = "value"
+  }
+
+  provider = google-beta
+}
+
+data "google_project" "project" {
+  provider = google-beta
 }
