@@ -4,6 +4,7 @@ from airports_data import AirportData
 from collections import namedtuple
 from utils import haversine_distance, calculate_speed
 from dataclasses import dataclass
+import yaml
 
 
 FlightInfo = namedtuple('FlightInfo', ["icao24", "last_seen", "arrival_airport", "call_sign"])
@@ -34,7 +35,9 @@ class FlightDatapoint:
 
 class FlightData:
     def __init__(self, airports: AirportData):
-        self._api = OpenSkyApi(username= 'fifi', password= 'UtqpsWju8@sbVN7')
+        with open('credentials.yaml') as file:
+            config = yaml.load(file, Loader=yaml.FullLoader)
+        self._api = OpenSkyApi(username= config["open_sky"]['username'], password= config["open_sky"]['password'])
         self._airport_data = airports
 
     @staticmethod
