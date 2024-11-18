@@ -84,9 +84,12 @@ def get_weather_data(latitude, longitude, date):
             return weather_data_list
         else:
             print("No forecast data found.")
+            return None
     else:
         print(response.status_code)
+        print(response.raw)
         print("Failed to retrieve data not 200")
+        return None
 
 def find_weather_data_by_unixtime(weather_data_list, unix_time):
     for row in weather_data_list:
