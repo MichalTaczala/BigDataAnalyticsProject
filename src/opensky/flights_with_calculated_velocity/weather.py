@@ -1,8 +1,7 @@
 import requests
 import time
 from datetime import datetime, timedelta
-import csv
-from config import WEATHER_API_KEY, BASE_URL
+from .config import WEATHER_API_KEY, BASE_URL
 
 def interpolate_minute_data(hourly_data):
     minute_data = []

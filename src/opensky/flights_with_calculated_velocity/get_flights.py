@@ -1,12 +1,10 @@
 import csv
-from opensky_api import OpenSkyApi
-from config import START_TIME, END_TIME, NAME_OF_OUTPUT_FILE
-from velocity import calculate_average_velocity, calculate_total_distance_and_time
-from weather import get_weather_data, find_weather_data_by_unixtime
+from .weather import get_weather_data, find_weather_data_by_unixtime
 import time
 from datetime import datetime, timedelta
 import os
-from flight_data import FlightDatapoint
+from flight_data.models import FlightDatapoint
+
 
 def extract_six_char_string_values(flight_data):
     data_dict = vars(flight_data)
@@ -42,9 +40,9 @@ def save_flight_data_to_csv(flight_data: list[FlightDatapoint], filename, write_
             time_to_minute = round_unixtime_to_nearest_minute(datapoint.time)
 
             if not file_exists and write_header:
-                writer.writerow(datapoint.get_names() + ['Temperature(°C)', 'Feels Like(°C)',
+                writer.writerow(datapoint.get_attribute_names() + ['Temperature(°C)', 'Feels Like(°C)',
                              'Condition', 'Wind Speed(kph)', 'Humidity(%)', 'Precipitation(mm)', 
-                             'Visibility(km)', 'Pressure(mb)', 'UV Index' ])
+                             'Visibility(km)', 'Pressure(mb)', 'UV Index'])
             
             total_weather_data = get_weather_data(datapoint.latitude, datapoint.longitude, transform_unix_timestamp(time_to_minute))
             if total_weather_data is None:

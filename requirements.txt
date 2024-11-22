@@ -2,3 +2,9 @@
 cryptography
 pandas
 pyyaml
+click
+structlog
+
+pytest
+freezegun
+requests-mock
