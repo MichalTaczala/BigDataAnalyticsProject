@@ -3,7 +3,14 @@ from math import radians, sin, cos, sqrt, atan2
 
 
 class BaseDataclass:
+    """Base class for dataclasses that provides methods for getting attribute names and values recursively"""
     def get_attribute_names(self) -> list[str]:
+        """
+        Recursively gets all attribute names of the dataclass and its nested dataclasses
+
+        If an attribute is an object which is a child of BaseDataclass, the attribute names of the child object
+        will be prefixed with the parent attribute name and an underscore.
+        """
         keys: list[str] = []
         for key, value in zip(self.__annotations__.keys(), self.__dict__.values()):
             if isinstance(value, BaseDataclass):
@@ -15,6 +22,7 @@ class BaseDataclass:
         return keys
 
     def get_values(self) -> list:
+        """Recursively gets all attribute values of the dataclass and its nested dataclasses"""
         values = []
         for value in self.__dict__.values():
             if isinstance(value, BaseDataclass):
