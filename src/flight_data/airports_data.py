@@ -1,6 +1,6 @@
 import pandas as pd
 
-from common_models import Location
+from common.models import Location
 
 
 class AirportData:

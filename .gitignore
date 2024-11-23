@@ -212,5 +212,9 @@ data/**/*
 # Don't ignore data/static
 !data/static/*
 
+coverage_html/**/*
+!coverage_html/**/*/
+
 # Don't ignore .gitkeep files (to preserve empty directories)
-!data/**/.gitkeep
+!*/**/.gitkeep
+

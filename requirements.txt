@@ -6,5 +6,6 @@ click
 structlog
 
 pytest
+pytest-cov
 freezegun
 requests-mock

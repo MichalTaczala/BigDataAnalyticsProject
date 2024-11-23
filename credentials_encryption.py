@@ -1,3 +1,4 @@
+"""Code generated using Claude 3.5 Sonnet"""
 import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -16,7 +17,7 @@ class YAMLCredentialsHandler:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b'<9m!ivc_x-lc`ZxoaF0A<D-EH)gkAwB6q)tV|r>qa$ 875Cl:k{rGxb2hS9mxwn2',  # In production, use a proper random salt and store it
+            salt=b'<9m!ivc_x-lc`ZxoaF0A<D-EH)gkAwB6q)tV|r>qa$ 875Cl:k{rGxb2hS9mxwn2',
             iterations=100000,
         )
         key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))

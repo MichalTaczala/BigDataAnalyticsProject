@@ -2,8 +2,30 @@ from dataclasses import dataclass
 from math import radians, sin, cos, sqrt, atan2
 
 
+class BaseDataclass:
+    def get_attribute_names(self) -> list[str]:
+        keys: list[str] = []
+        for key, value in zip(self.__annotations__.keys(), self.__dict__.values()):
+            if isinstance(value, BaseDataclass):
+                keys.extend(
+                    [f"{key}_{sub_key}" for sub_key in value.get_attribute_names()]
+                )
+            else:
+                keys.append(key)
+        return keys
+
+    def get_values(self) -> list:
+        values = []
+        for value in self.__dict__.values():
+            if isinstance(value, BaseDataclass):
+                values.extend(value.get_values())
+            else:
+                values.append(value)
+        return values
+
+
 @dataclass
-class Location:
+class Location(BaseDataclass):
     latitude: float  # degrees
     longitude: float  # degrees
 

@@ -1,7 +1,7 @@
 import pytest
 
 from flight_data.airports_data import AirportData
-from common_models import Location
+from common.models import Location
 
 
 @pytest.fixture

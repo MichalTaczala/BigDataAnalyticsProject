@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, call
-import os
+from unittest.mock import MagicMock, call
 import pytest
 from freezegun import freeze_time
 
@@ -8,6 +7,9 @@ from config import DOWNLOAD_DATA_DIR
 from collect_flights import FlightCollector
 from flight_data.flight_data import FlightData
 from flight_data.models import FlightDatapoint, FlightInfo
+from common.models import Location
+from weather_data.models import WeatherDatapoint
+from data_collection.models import CombinedDatapoint
 
 @pytest.fixture
 def mock_flight_data() -> MagicMock:
@@ -57,14 +59,33 @@ def test_collect_flights_no_data(collector: FlightCollector, mock_flight_data: M
 
 def test_process_flights(collector: FlightCollector, mock_flight_data: MagicMock) -> None:
     mock_flights = [MagicMock(icao24='flight1'), MagicMock(icao24='flight2')]
-    mock_flight_datapoints = [MagicMock(spec=FlightDatapoint)]
-    mock_flight_data.get_flight_datapoints.side_effect = [mock_flight_datapoints, None]
+    flight_datapoints = [
+        FlightDatapoint(
+            location=Location(10, 20),
+            arrival_airport="JFK",
+            arrival_airport_location=Location(20, 20),
+            timestamp=0,
+            horizontal_speed=0.0,
+            altitude=0.0,
+            vertical_speed=0.0,
+            heading=0.0,
+            distance_to_destination=0.0,
+            arrival_time=0,
+            time_to_arrival=0,
+        )
+    ]
+    weather_datapoint = WeatherDatapoint.empty_from_timestamp(0)
+    combined_datapoint = CombinedDatapoint.from_datapoints(flight_datapoints[0], weather_datapoint)
+    combined_datapoint.save_to_csv = MagicMock()
 
-    with patch('collect_flights.save_flight_data_to_csv') as mock_save:
-        collector.process_flights(mock_flights, 'test.csv')
+    mock_flight_data.get_flight_datapoints.side_effect = [flight_datapoints, None]
+    collector.get_weather_data_for_flight_datapoints = MagicMock(return_value=[combined_datapoint])
+
+    collector.process_flights(mock_flights, 'test.csv')
 
     assert mock_flight_data.get_flight_datapoints.call_args_list == [call(mock_flights[0]), call(mock_flights[1])]
-    mock_save.assert_called_once_with(mock_flight_datapoints, 'test.csv')
+    collector.get_weather_data_for_flight_datapoints.assert_called_once_with(flight_datapoints)
+    combined_datapoint.save_to_csv.assert_called_once_with('test.csv')
 
 
 @freeze_time("2024-01-01 12:00:00")
@@ -155,4 +176,53 @@ def test_run_checks_all_flights_from_offset_to_current_time(collector: FlightCol
     assert collector.process_flights.call_args_list == [
         call(mock_flights[0], output_files[0]),
         call(mock_flights[1], output_files[1]),
+    ]
+
+def test_get_weather_data_for_flight_datapoints(collector: FlightCollector) -> None:
+    flight_datapoints = [
+        FlightDatapoint(
+            location=Location(10, 20),
+            arrival_airport="JFK",
+            arrival_airport_location=Location(20, 20),
+            timestamp=0,
+            horizontal_speed=0.0,
+            altitude=0.0,
+            vertical_speed=0.0,
+            heading=0.0,
+            distance_to_destination=0.0,
+            arrival_time=0,
+            time_to_arrival=0,
+        ),
+        FlightDatapoint(
+            location=Location(10, 20),
+            arrival_airport="JFK",
+            arrival_airport_location=Location(20, 20),
+            timestamp=40,
+            horizontal_speed=0.0,
+            altitude=0.0,
+            vertical_speed=0.0,
+            heading=0.0,
+            distance_to_destination=0.0,
+            arrival_time=0,
+            time_to_arrival=0,
+        ),
+    ]
+    weather_datapoints = [WeatherDatapoint.empty_from_timestamp(5), WeatherDatapoint.empty_from_timestamp(50)]
+    datapoints = [
+        CombinedDatapoint.from_datapoints(
+            flight_datapoints[0],
+            weather_datapoints[0],
+        ),
+        CombinedDatapoint.from_datapoints(
+            flight_datapoints[1],
+            weather_datapoints[1],
+        ),
+    ]
+    collector.weather_data.get_weather_datapoint_for_flight_datapoint = MagicMock(side_effect=weather_datapoints)
+
+    assert collector.get_weather_data_for_flight_datapoints(flight_datapoints) == datapoints
+
+    assert collector.weather_data.get_weather_datapoint_for_flight_datapoint.call_args_list == [
+        call(flight_datapoints[0]),
+        call(flight_datapoints[1]),
     ]

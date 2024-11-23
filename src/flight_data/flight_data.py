@@ -4,10 +4,10 @@ import structlog
 from typing import Callable, Any
 
 from .airports_data import AirportData
-from utils import calculate_speed
+from common.utils import calculate_speed
 from .models import FlightDatapoint, FlightInfo
 from config import OPENSKY_PASSWORD, OPENSKY_USERNAME
-from common_models import Location
+from common.models import Location
 
 logger = structlog.get_logger()
 
@@ -56,6 +56,8 @@ class FlightData:
 
         flights_info: list[FlightInfo] = []
         for flight in data:
+            if not flight.estArrivalAirport:
+                continue
             airport = flight.estArrivalAirport.replace(" ", "")
             if not self._airport_data.is_airport(airport):
                 continue
@@ -110,7 +112,7 @@ class FlightData:
                     location=Location(latitude=path[i][1], longitude=path[i][2]),
                     arrival_airport=flight_info.arrival_airport,
                     arrival_airport_location=arrival_airport_location,
-                    time=path[i][0],
+                    timestamp=path[i][0],
                     horizontal_speed=calculate_speed(
                         distances_to_destination[i] - distances_to_destination[last_saved_datapoint],
                         path[i][0] - path[last_saved_datapoint][0],

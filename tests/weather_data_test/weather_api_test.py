@@ -1,12 +1,9 @@
 import pytest
 import requests
-from unittest.mock import patch
-import json
-from datetime import datetime
 from requests_mock.mocker import Mocker
 
 from weather_data.weather_api import fetch_weather_data
-from common_models import Location
+from common.models import Location
 from config import WEATHER_API_KEY, WEATHER_API_URL
 
 

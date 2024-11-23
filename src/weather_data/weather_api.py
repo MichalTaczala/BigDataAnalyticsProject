@@ -4,7 +4,7 @@ from typing import Any
 import re
 
 from config import WEATHER_API_KEY, WEATHER_API_URL
-from common_models import Location
+from common.models import Location
 
 
 logger = structlog.get_logger()

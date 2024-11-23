@@ -7,7 +7,7 @@ from flight_data.airports_data import AirportData
 from flight_data.flight_data import FlightData
 from flight_data.models import FlightInfo
 from config import OPENSKY_PASSWORD, OPENSKY_USERNAME
-from common_models import Location
+from common.models import Location
 
 
 @pytest.fixture
@@ -82,6 +82,10 @@ def test_get_flights_success(flight_data: FlightData, mock_airports_data: MagicM
         OpenSkyFlightData(
             ["flight4", 0, "", 1635728600, "INVALID", "GHI222", 0, 0, 0, 0, 0, 0]
         ),
+        # Remove because of not airport code
+        OpenSkyFlightData(
+            ["flight4", 0, "", 1635728600, None, "GHI222", 0, 0, 0, 0, 0, 0]
+        ),
     ]
     expected_results = [
         FlightInfo(
@@ -125,6 +129,7 @@ def test_get_flights_no_data(flight_data: FlightData, mock_airports_data: MagicM
     mock_airports_data.is_airport.assert_not_called()
 
 
+
 def test_get_flight_datapoints_no_data(flight_data: FlightData, mock_airports_data: MagicMock) -> None:
     flight_data._call_api = MagicMock(return_value=None)
     flight_info = FlightInfo("flight1", 1635728300, "JFK", "ABC123")
@@ -161,7 +166,7 @@ def test_get_flight_datapoints_success(flight_data: FlightData, mock_airports_da
         datapoints = flight_data.get_flight_datapoints(flight_info)
 
     assert len(datapoints) == 2
-    assert datapoints[0].time == 1635728400
+    assert datapoints[0].timestamp == 1635728400
     assert datapoints[0].location == Location(0, 1)
     assert datapoints[0].arrival_airport == "JFK"
     assert datapoints[0].arrival_airport_location == Location(10, 5)
@@ -173,7 +178,7 @@ def test_get_flight_datapoints_success(flight_data: FlightData, mock_airports_da
     assert datapoints[0].arrival_time == 1635728500
     assert datapoints[0].time_to_arrival == 100
 
-    assert datapoints[1].time == 1635728500
+    assert datapoints[1].timestamp == 1635728500
     assert datapoints[1].location == Location(1, 1)
     assert datapoints[1].arrival_airport == "JFK"
     assert datapoints[1].arrival_airport_location == Location(10, 5)
@@ -204,7 +209,7 @@ def test_get_flight_datapoints_success_with_skip(flight_data: FlightData, mock_a
         datapoints = flight_data.get_flight_datapoints(flight_info)
 
     assert len(datapoints) == 2
-    assert datapoints[0].time == 1635728400
+    assert datapoints[0].timestamp == 1635728400
     assert datapoints[0].location == Location(0, 1)
     assert datapoints[0].arrival_airport == "JFK"
     assert datapoints[0].arrival_airport_location == Location(10, 5)
@@ -216,7 +221,7 @@ def test_get_flight_datapoints_success_with_skip(flight_data: FlightData, mock_a
     assert datapoints[0].arrival_time == 1635728500
     assert datapoints[0].time_to_arrival == 100
 
-    assert datapoints[1].time == 1635728500
+    assert datapoints[1].timestamp == 1635728500
     assert datapoints[1].location == Location(1, 1)
     assert datapoints[1].arrival_airport == "JFK"
     assert datapoints[1].arrival_airport_location == Location(10, 5)

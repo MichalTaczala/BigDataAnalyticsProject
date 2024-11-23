@@ -1,6 +1,6 @@
 import pytest
 
-from common_models import Location
+from common.models import Location
 
 
 @pytest.mark.parametrize(
