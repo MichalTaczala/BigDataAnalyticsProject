@@ -203,3 +203,18 @@ cython_debug/
 /*.csv
 /credentials.yaml
 
+# Ignore all files in data directory and subdirectories
+data/**/*
+
+# Don't ignore directories themselves (to keep structure)
+!data/**/*/
+
+# Don't ignore data/static
+!data/static/*
+
+coverage_html/**/*
+!coverage_html/**/*/
+
+# Don't ignore .gitkeep files (to preserve empty directories)
+!*/**/.gitkeep
+
