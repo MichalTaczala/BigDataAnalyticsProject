@@ -39,34 +39,40 @@ def convert_csv_to_avro(input_file, output_file):
         reader = csv.reader(csvfile)
         next(reader)
         for row in reader:
-            record = {
-                "latitude": float(row[0]),
-                "longitude": float(row[1]),
-                "arrival_airport": row[2],
-                "arrival_airport_latitude": float(row[3]),
-                "arrival_airport_longitude": float(row[4]),
-                "time": int(float(row[5])),
-                "horizontal_velocity": float(row[6]),
-                "altitude": float(row[7]),
-                "vertical_velocity": float(row[8]),
-                "heading": float(row[9]),
-                "distance_to_destination": float(row[10]),
-                "arrival_time": int(float(row[11])),
-                "time_to_arrival": int(float(row[12])),
-                "temperature": float(row[13]),
-                "feels_like": float(row[14]),
-                "condition": row[15],
-                "wind_speed": float(row[16]),
-                "humidity": float(row[17]),
-                "precipitation": float(row[18]),
-                "visibility": float(row[19]),
-                "pressure": float(row[20]),
-                "uv_index": float(row[21])
-            }
-            records.append(record)
+            try:
+                record = {
+                    "latitude": float(row[0]),
+                    "longitude": float(row[1]),
+                    "arrival_airport": row[2],
+                    "arrival_airport_latitude": float(row[3]),
+                    "arrival_airport_longitude": float(row[4]),
+                    "time": int(float(row[5])),
+                    "horizontal_velocity": float(row[6]),
+                    "altitude": float(row[7]),
+                    "vertical_velocity": float(row[8]),
+                    "heading": float(row[9]),
+                    "distance_to_destination": float(row[10]),
+                    "arrival_time": int(float(row[11])),
+                    "time_to_arrival": int(float(row[12])),
+                    "temperature": float(row[13]),
+                    "feels_like": float(row[14]),
+                    "condition": row[15],
+                    "wind_speed": float(row[16]),
+                    "humidity": float(row[17]),
+                    "precipitation": float(row[18]),
+                    "visibility": float(row[19]),
+                    "pressure": float(row[20]),
+                    "uv_index": float(row[21])
+                }
+                records.append(record)
+            except ValueError as e:
+                print("Skipping row due to invalid value: %s, Row: %s" % (e, row))
+
+
 
     with open(output_file, 'wb') as out:
         fastavro.writer(out, schema, records)
+
 
 def process_directory(input_dir, output_dir):
     input_path = Path(input_dir)
