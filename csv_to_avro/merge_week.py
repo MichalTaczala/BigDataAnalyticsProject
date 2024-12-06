@@ -1,120 +1,108 @@
 import sys
-import glob
 import os
 import fastavro
 from typing import List
 from datetime import datetime, timedelta
+from google.cloud import storage
 from schema import SCHEMA
+import io
 
 def get_date_from_filename(filename: str) -> datetime:
-    """
-    Extract date from filename format: flights_YYYYMMDD_HHMM_to_YYYYMMDD_HHMM.avro
-    Returns the date from the first timestamp in the filename.
-    """
+    """Extract date from filename format: flights_YYYYMMDD_HHMM_to_YYYYMMDD_HHMM.avro"""
     try:
-        # Extract the first date part (YYYYMMDD)
         date_str = filename.split('_')[1]
         return datetime.strptime(date_str, '%Y%m%d')
     except (IndexError, ValueError) as e:
         raise ValueError(f"Invalid filename format: {filename}") from e
 
 def get_week_bounds(date: datetime) -> tuple[datetime, datetime]:
-    """
-    Get the Monday and Sunday dates for the week containing the given date.
-    """
-    monday = date - timedelta(days=date.weekday())  # Get Monday of the week
-    sunday = monday + timedelta(days=6)  # Get Sunday of the week
+    """Get the Monday and Sunday dates for the week containing the given date."""
+    monday = date - timedelta(days=date.weekday())
+    sunday = monday + timedelta(days=6)
     return monday, sunday
 
-def group_files_by_week(input_files: List[str]) -> dict:
-    """
-    Group files by week periods (Monday-Sunday).
-    Returns a dictionary with week start dates as keys and lists of files as values.
-    """
+def group_files_by_week(blobs: List[storage.Blob]) -> dict:
+    """Group files by week periods (Monday-Sunday)."""
     weekly_files = {}
     
-    for file in input_files:
+    for blob in blobs:
         try:
-            file_date = get_date_from_filename(os.path.basename(file))
+            file_date = get_date_from_filename(blob.name)
             week_start, _ = get_week_bounds(file_date)
             
             if week_start not in weekly_files:
                 weekly_files[week_start] = []
-            weekly_files[week_start].append(file)
+            weekly_files[week_start].append(blob)
         except ValueError as e:
-            print(f"Skipping file {file}: {str(e)}")
+            print(f"Skipping file {blob.name}: {str(e)}")
             continue
     
     return weekly_files
 
-def merge_avro_files(input_path: str, output_dir: str) -> None:
+def merge_avro_files(bucket_name: str, output_bucket_name: str) -> None:
     """
-    Merge AVRO files into weekly output files.
+    Merge AVRO files from GCS bucket into weekly files.
     
     Args:
-        input_path: Path to input directory or file
-        output_dir: Path to output directory
+        bucket_name: Source bucket name
+        output_bucket_name: Destination bucket name
     """
-    # Get list of input files
-    if os.path.isdir(input_path):
-        input_files = glob.glob(os.path.join(input_path, "*.avro"))
-    else:
-        input_files = [input_path]
+    client = storage.Client()
+    source_bucket = client.bucket(bucket_name)
+    output_bucket = client.bucket(output_bucket_name)
     
-    if not input_files:
-        print(f"No AVRO files found in {input_path}")
+    # List all AVRO files in bucket
+    blobs = list(source_bucket.list_blobs(prefix='', delimiter='/'))
+    avro_blobs = [blob for blob in blobs if blob.name.endswith('.avro')]
+    
+    if not avro_blobs:
+        print(f"No AVRO files found in bucket {bucket_name}")
         return
     
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-    
     # Group files by week
-    weekly_files = group_files_by_week(input_files)
+    weekly_files = group_files_by_week(avro_blobs)
     
-    for week_start, files in weekly_files.items():
+    for week_start, blobs in weekly_files.items():
         week_end = week_start + timedelta(days=6)
-        output_file = os.path.join(
-            output_dir,
-            f"flights_weekly_{week_start.strftime('%Y%m%d')}_to_{week_end.strftime('%Y%m%d')}.avro"
-        )
+        output_name = f"flights_weekly_{week_start.strftime('%Y%m%d')}_to_{week_end.strftime('%Y%m%d')}.avro"
         
-        # Collect all records first
+        # Collect all records
         all_records = []
-        for file in files:
+        for blob in blobs:
             try:
-                with open(file, 'rb') as f:
-                    reader = fastavro.reader(f)
-                    all_records.extend(list(reader))
-                print(f"Read {len(all_records)} records from {file}")
+                content = blob.download_as_bytes()
+                reader = fastavro.reader(io.BytesIO(content))
+                all_records.extend(list(reader))
+                print(f"Read {len(all_records)} records from {blob.name}")
             except Exception as e:
-                print(f"Error reading file {file}: {str(e)}")
+                print(f"Error reading blob {blob.name}: {str(e)}")
                 continue
         
-        # Write all collected records to the output file
+        # Write merged records to output bucket
         try:
-            with open(output_file, 'wb') as out:
-                fastavro.writer(out, SCHEMA, all_records)
-            print(f"Successfully merged {len(files)} files ({len(all_records)} records) for week "
-                  f"{week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')} "
-                  f"into {output_file}")
+            output_blob = output_bucket.blob(output_name)
+            with io.BytesIO() as buffer:
+                fastavro.writer(buffer, SCHEMA, all_records)
+                buffer.seek(0)
+                output_blob.upload_from_file(buffer)
+                
+            print(f"Successfully merged {len(blobs)} files ({len(all_records)} records) for week "
+                  f"{week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}")
         except Exception as e:
-            print(f"Error writing to output file {output_file}: {str(e)}")
+            print(f"Error writing output blob {output_name}: {str(e)}")
             continue
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python merge.py <input_path> <output_directory>")
-        print("input_path can be either a directory containing AVRO files or a single AVRO file")
+    if len(sys.argv) != 4:
+        print("Usage: python merge.py <credentials_path> <source_bucket> <output_bucket>")
         sys.exit(1)
     
-    input_path = sys.argv[1]
-    output_dir = sys.argv[2]
+    credentials_path = sys.argv[1]
+    source_bucket = sys.argv[2]
+    output_bucket = sys.argv[3]
     
-    if not os.path.exists(input_path):
-        print(f"Input path {input_path} does not exist")
-        sys.exit(1)
-    
-    merge_avro_files(input_path, output_dir)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+    merge_avro_files(source_bucket, output_bucket)
 
 if __name__ == "__main__":
     main()

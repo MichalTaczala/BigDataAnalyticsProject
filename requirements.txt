@@ -11,3 +11,4 @@ freezegun
 requests-mock
 
 fastavro
+google
