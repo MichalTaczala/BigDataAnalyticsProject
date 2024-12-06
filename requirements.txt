@@ -9,3 +9,5 @@ pytest
 pytest-cov
 freezegun
 requests-mock
+
+fastavro
