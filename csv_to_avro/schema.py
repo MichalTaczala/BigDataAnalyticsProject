@@ -1,4 +1,4 @@
-schema = {
+SCHEMA = {
     "type": "record",
     "name": "FlightWeatherData",
     "fields": [
