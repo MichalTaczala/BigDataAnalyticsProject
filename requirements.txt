@@ -12,3 +12,9 @@ requests-mock
 
 fastavro
 google
+
+torch
+numpy
+matplotlib
+scikit-learn
+google-cloud-storage

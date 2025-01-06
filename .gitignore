@@ -218,3 +218,6 @@ coverage_html/**/*
 # Don't ignore .gitkeep files (to preserve empty directories)
 !*/**/.gitkeep
 
+src/*.npy
+src/*.json
+src/*.pth
