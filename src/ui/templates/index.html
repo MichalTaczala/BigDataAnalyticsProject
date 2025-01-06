@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        select {
+            width: 200px;
+            padding: 10px;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+        h1 {
+            color: #333;
+        }
+        .delay-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .submit-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+        .info-line {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Flight Tracker</h1>
+    <form method="POST">
+        <label for="flight-select">Select a flight:</label>
+        <select id="flight-select" name="flight">
+            <option value="">--Please choose a flight--</option>
+            {% for flight in flights %}
+            <option value="{{ flight.callsign }}" {% if selected_flight == flight.callsign %}selected{% endif %}>
+                {{ flight.callsign }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="submit-btn">Check Delay</button>
+    </form>
+
+    {% if selected_flight and delay is not none %}
+    <div class="delay-info">
+        <h2>Flight Delay Information</h2>
+        <div class="info-line">Flight Callsign: <strong>{{ selected_flight }}</strong></div>
+        <div class="info-line">ICAO ID: <strong>{{ selected_icao }}</strong></div>
+        <div class="info-line">Current Delay: <strong>{{ delay }} minutes</strong></div>
+    </div>
+    {% endif %}
+</body>
+</html>
