@@ -17,14 +17,25 @@
             margin: 20px 0;
             font-size: 16px;
         }
-        h1 {
+        h1, h2 {
             color: #333;
         }
-        .delay-info {
+        .delay-info, .session-info {
             margin-top: 20px;
             padding: 15px;
             background-color: #f5f5f5;
             border-radius: 5px;
+        }
+        .session-info {
+            background-color: #e8f5e9;
+            margin-bottom: 20px;
+        }
+        .error-message {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
         }
         .submit-btn {
             padding: 10px 20px;
@@ -38,21 +49,48 @@
         .submit-btn:hover {
             background-color: #45a049;
         }
-        .info-line {
-            margin: 10px 0;
-            font-size: 16px;
+        .id-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .id-value {
+            font-family: monospace;
+            background-color: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
         }
     </style>
 </head>
 <body>
+    <div class="session-info">
+        <h2>Session Information</h2>
+        <p>
+            <span class="id-label">Host ID:</span>
+            <span class="id-value">{{ host_id }}</span>
+        </p>
+        {% if request_id %}
+        <p>
+            <span class="id-label">Last Request ID:</span>
+            <span class="id-value">{{ request_id }}</span>
+        </p>
+        {% endif %}
+    </div>
+
+    {% if error_message and show_errors %}
+    <div class="error-message">
+        <strong>Error:</strong> {{ error_message }}
+    </div>
+    {% endif %}
+
     <h1>Flight Tracker</h1>
     <form method="POST">
         <label for="flight-select">Select a flight:</label>
         <select id="flight-select" name="flight">
             <option value="">--Please choose a flight--</option>
             {% for flight in flights %}
-            <option value="{{ flight.callsign }}" {% if selected_flight == flight.callsign %}selected{% endif %}>
-                {{ flight.callsign }}
+            <option value="{{ flight }}" {% if selected_flight == flight %}selected{% endif %}>
+                {{ flight }}
             </option>
             {% endfor %}
         </select>
@@ -61,10 +99,9 @@
 
     {% if selected_flight and delay is not none %}
     <div class="delay-info">
-        <h2>Flight Delay Information</h2>
-        <div class="info-line">Flight Callsign: <strong>{{ selected_flight }}</strong></div>
-        <div class="info-line">ICAO ID: <strong>{{ selected_icao }}</strong></div>
-        <div class="info-line">Current Delay: <strong>{{ delay }} minutes</strong></div>
+        <h2>Flight Information</h2>
+        <p>Flight icao24: <strong>{{ selected_flight }}</strong></p>
+        <p>Time to land: <strong>{{ delay }} minutes</strong></p>
     </div>
     {% endif %}
 </body>
