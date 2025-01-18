@@ -103,4 +103,4 @@ if __name__ == "__main__":
     X = get_features(data)
     #X = np.array([[1200, 500]])
     y_pred = inference(X)
-    print(f"Predicted delay: {y_pred:.2f} seconds")
+    print(f"Predicted delay: {y_pred} seconds")

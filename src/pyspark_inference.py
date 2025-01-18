@@ -84,8 +84,8 @@ def predict_batch(df, batch_id):
         y_pred = list(map(float, inference(X)))
         logger.info("Predictions: %s", y_pred)
 
-        for datapoint, y in zip(data, y_pred):
-            row = df.filter(df.icao24 == datapoint.flight.icao24).first()
+        for datapoint, y, flight_info in zip(data, y_pred, flights):
+            row = df.filter(df.icao24 == flight_info.icao24).first()
             d = {
                 key: value
                 for key, value in zip(datapoint.get_attribute_names(), datapoint.get_values())
