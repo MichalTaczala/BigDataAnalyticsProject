@@ -23,7 +23,7 @@ def inference(X: np.ndarray) -> np.ndarray:
     best_model = "best_model.pth"
     if not os.path.isfile(best_model):
         loader.load_to_path("best_model.pth", best_model)
-
+    logging.info("Weights")
     model = FlightNN(input_size=2)
     model.load(best_model)
 

@@ -1,5 +1,9 @@
 import torch
 from torch import nn
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class FlightNN(nn.Module):
@@ -19,4 +23,5 @@ class FlightNN(nn.Module):
         return self.network(x).squeeze()
 
     def load(self, path):
+        logging.info("Loading model from %s", path)
         self.load_state_dict(torch.load(path))

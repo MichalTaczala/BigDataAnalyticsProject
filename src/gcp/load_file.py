@@ -2,7 +2,10 @@ from google.cloud import storage
 import io
 import tempfile
 from pathlib import Path
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class GCSLoader:
     def __init__(self, bucket_name: str) -> None:
@@ -12,8 +15,11 @@ class GCSLoader:
         Args:
             bucket_name (str): GCS bucket name
         """
+
+        logging.info("Initializing GCS Loader")
         self.client = storage.Client(project="regal-extension-418520")
         self.bucket = self.client.bucket(bucket_name)
+        logging.info("GCS Loader initialized")
 
     def load_to_memory(self, blob_path: str) -> io.BytesIO:
         """
@@ -56,6 +62,7 @@ class GCSLoader:
             blob_path (str): Path to file in bucket
             local_path (str): Local path to save file
         """
+
         blob = self.bucket.blob(blob_path)
         blob.download_to_filename(local_path)
 
