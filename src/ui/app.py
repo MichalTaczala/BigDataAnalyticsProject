@@ -30,6 +30,9 @@ class FlightData:
     timestamp: int
     host_id: str
     session_id: str
+    lastSeen: int
+    callSign: str
+    arrivalAirport: str
 
 class FlightTrackerError(Exception):
     pass
@@ -98,7 +101,10 @@ def send_flight_data_to_nifi(flight, host_id: str, session_id: str, timestamp: i
             icao24=flight.icao24,
             timestamp=timestamp,
             host_id=host_id,
-            session_id=session_id
+            session_id=session_id,
+            lastSeen=flight.lastSeen,
+            callSign=flight.callsign,
+            arrivalAirport=flight.estArrivalAirport
         )
 
         flight_dict = flight_data.__dict__
@@ -196,25 +202,7 @@ def flight_data():
                          show_errors=Config.SHOW_UI_ERRORS)
 
 def main():
-   # parser = argparse.ArgumentParser(description='Flight Tracker Application')
-   # parser.add_argument('--show-errors', action='store_true', 
-   #                   help='Enable error messages in the UI')
-   # parser.add_argument('--port', type=int, default=5000,
-   #                   help='Port to run the application on')
-   # parser.add_argument('--host', default='127.0.0.1',
-   #                   help='Host to run the application on')
-   # parser.add_argument('--debug', action='store_true',
-   #                   help='Run in debug mode')
-    
-   # args = parser.parse_args()
-    
-    Config.SHOW_UI_ERRORS = args.show_errors
-    
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-    else:
-        logging.getLogger().setLevel(logging.INFO)
-    port = int(os.envrion.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=True)
 
 if __name__ == '__main__':
