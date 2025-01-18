@@ -18,7 +18,7 @@ spark = SparkSession.builder \
 
 # Kafka configurations
 kafka_broker = "10.186.0.31:9092"
-input_topic = "rawFlightData"
+input_topic = "flightInfo"
 output_topic = "predictionData"
 
 input_schema = StructType([
@@ -72,7 +72,7 @@ def predict_batch(df, batch_id):
 
         y_pred = inference(X)
 
-        for datapoint, y, row in zip(data, y_pred, df.iterrows()):
+        for datapoint, y, row in zip(data, y_pred, rows):
             d = {
                 key: value
                 for key, value in zip(datapoint.get_attribute_names(), datapoint.get_values())
