@@ -76,7 +76,7 @@ def get_flights_data() -> Tuple[List[str], Dict[str, object], int]:
             return [], {}, current_time
             
         # Create a mapping of flight IDs to full flight objects
-        flight_map = {flight.icao24: flight for flight in flights}
+        flight_map = {flight.icao24: flight for flight in flights if flight.estArrivalAirport}
         flight_ids = list(flight_map.keys())
         
         return flight_ids, flight_map, current_time
@@ -103,8 +103,8 @@ def send_flight_data_to_nifi(flight, host_id: str, session_id: str, timestamp: i
             host_id=host_id,
             session_id=session_id,
             lastSeen=flight.lastSeen,
-            callSign=flight.callsign,
-            arrivalAirport=flight.estArrivalAirport
+            callSign=flight.callsign and flight.callsign.replace(" ", ""),
+            arrivalAirport=flight.estArrivalAirport.replace(" ", "")
         )
 
         flight_dict = flight_data.__dict__

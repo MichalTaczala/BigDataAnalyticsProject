@@ -73,7 +73,7 @@ class FlightData:
 
         return flights_info
 
-    def get_flight_datapoints(self, flight_info: FlightInfo) -> list[FlightDatapoint] | None:
+    def get_flight_datapoints(self, flight_info: FlightInfo, ignore_min_distance: bool = False) -> list[FlightDatapoint] | None:
         """Get flight path from OpenSky API for a given flight and convert it to a list of FlightDatapoints"""
 
         flight_data = self._call_api(self._api.get_track_by_aircraft, flight_info.icao24, flight_info.last_seen)
@@ -97,9 +97,12 @@ class FlightData:
                 path = path[:i + 1]
                 break
 
-        if arrival_time is None:
+        if arrival_time is None and not ignore_min_distance:
             logger.info(f"No data points further than {self.THRESHOLD_DISTANCE_KM} km of destination", icao24=flight_info.icao24)
             return None
+
+        if ignore_min_distance:
+            arrival_time = None
 
         flight_datapoints: list[FlightDatapoint] = []
         last_saved_datapoint = 0
