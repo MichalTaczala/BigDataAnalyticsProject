@@ -13,7 +13,9 @@ def main(days: int, hours: int) -> None:
     airports = AirportData(config.AIRPORTS_DATA)
     flight_data = FlightData(airports)
     collector = FlightCollector(flight_data)
-    collector.run(days, hours)
+    import datetime
+    print(collector.collect_flights_in_time_window(datetime.datetime.now() - datetime.timedelta(hours=2), datetime.datetime.now())[0])
+    # collector.run(days, hours)
 
 
 if __name__ == "__main__":

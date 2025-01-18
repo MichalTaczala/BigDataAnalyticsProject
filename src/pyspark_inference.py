@@ -65,12 +65,17 @@ def predict_batch(df, batch_id):
                 row['callsign']
             ) for row in rows
         ]
+        logger.info("Flight: %s", flights[0])
 
         data = get_data(flights)
 
+        logger.info("Data: %s", data[0])
+
         X = get_features(data)
 
+        logger.info("Features: %s", X[0])
         y_pred = inference(X)
+        logger.info("Predictions: %s", y_pred)
 
         for datapoint, y, row in zip(data, y_pred, rows):
             d = {
