@@ -65,15 +65,18 @@ def predict_batch(df, batch_id):
                 row['callsign']
             ) for row in rows if row['icao24'] is not None and row['lastSeen'] is not None and row['arrivalAirport'] is not None
         ]
-        logger.info("Flight: %s", flights[0])
+        logger.info("Flight: %s", flights)
+        if not flights:
+            logger.info("No valid flights found in %s", rows)
+            return
 
         data = get_data(flights)
 
-        logger.info("Data: %s", data[0])
+        logger.info("Data: %s", data)
 
         X = get_features(data)
 
-        logger.info("Features: %s", X[0])
+        logger.info("Features: %s", X)
         y_pred = inference(X)
         logger.info("Predictions: %s", y_pred)
 
