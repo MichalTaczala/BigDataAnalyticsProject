@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def inference(X: np.ndarray) -> np.ndarray:
     logging.info("Starting inference")
     loader = GCSLoader(bucket_name="models-big-data-mini")
-    best_model = "best_model.pth"
+    best_model = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_model.pth")
     if not os.path.isfile(best_model):
         loader.load_to_path("best_model.pth", best_model)
     logging.info("Weights")
