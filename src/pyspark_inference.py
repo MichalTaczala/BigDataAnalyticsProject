@@ -77,7 +77,7 @@ def predict_batch(df, batch_id):
         X = get_features(data)
 
         logger.info("Features: %s", X)
-        y_pred = inference(X)
+        y_pred = list(map(float, inference(X)))
         logger.info("Predictions: %s", y_pred)
 
         for datapoint, y, row in zip(data, y_pred, rows):
