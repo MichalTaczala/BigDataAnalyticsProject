@@ -10,6 +10,7 @@ import argparse
 from typing import Optional, Tuple, List, Dict
 from dataclasses import dataclass
 import os
+import pandas as pd
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -19,6 +20,16 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = 'big_data'
+
+class AirportData:
+    def __init__(self, data_path: str) -> None:
+        self._airports = pd.read_csv(data_path)
+
+    def is_airport(self, icao: str) -> bool:
+        return icao in self._airports['ident'].values
+
+
+airport_data = AirportData("airports.csv")
 
 class Config:
     SHOW_UI_ERRORS = False
@@ -76,7 +87,7 @@ def get_flights_data() -> Tuple[List[str], Dict[str, object], int]:
             return [], {}, current_time
             
         # Create a mapping of flight IDs to full flight objects
-        flight_map = {flight.icao24: flight for flight in flights if flight.estArrivalAirport}
+        flight_map = {flight.icao24: flight for flight in flights if flight.estArrivalAirport and airport_data.is_airport(flight.estArrivalAirport.replace(" ", ""))}
         flight_ids = list(flight_map.keys())
         
         return flight_ids, flight_map, current_time
