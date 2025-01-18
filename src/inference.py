@@ -29,14 +29,14 @@ def inference(X: np.ndarray) -> np.ndarray:
 
     logging.info("Model loaded")
 
-    scaler_x_path = "scaler_X.json"
+    scaler_x_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scaler_X.json")
     if not os.path.isfile(scaler_x_path):
         loader.load_to_path("scaler_X.json", scaler_x_path)
     scaler_x = Scaler.load(scaler_x_path)
 
     logging.info("Scaler X loaded")
 
-    scaler_y = "scaler_y.json"
+    scaler_y = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scaler_y.json")
     if not os.path.isfile(scaler_y):
         loader.load_to_path("scaler_y.json", scaler_y)
     scaler_y = Scaler.load(scaler_y)
@@ -48,7 +48,7 @@ def inference(X: np.ndarray) -> np.ndarray:
     X_scaled = scaler_x.transform(X)
     X_tensor = torch.FloatTensor(X_scaled).reshape(1, -1)
 
-    logging.info("Data transformed")
+    logging.info("Data transformed %s", X_tensor)
     y_pred = model(X_tensor)
     logging.info("Prediction made %s", y_pred.detach().numpy())
     return scaler_y.inverse_transform(y_pred.detach().numpy().reshape(-1, 1)).ravel()
