@@ -1,5 +1,6 @@
 import torch
 import os
+import logging
 
 import config
 from model.scaler import Scaler
@@ -12,8 +13,12 @@ from data_collection.flight_collector import FlightCollector
 import numpy as np
 from gcp.load_file import GCSLoader
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 def inference(X: np.ndarray) -> np.ndarray:
+    logging.info("Starting inference")
     loader = GCSLoader(bucket_name="models-big-data-mini")
     best_model = "best_model.pth"
     if not os.path.isfile(best_model):
@@ -22,21 +27,30 @@ def inference(X: np.ndarray) -> np.ndarray:
     model = FlightNN(input_size=2)
     model.load(best_model)
 
+    logging.info("Model loaded")
+
     scaler_x_path = "scaler_X.json"
     if not os.path.isfile(scaler_x_path):
         loader.load_to_path("scaler_X.json", scaler_x_path)
     scaler_x = Scaler.load(scaler_x_path)
+
+    logging.info("Scaler X loaded")
 
     scaler_y = "scaler_y.json"
     if not os.path.isfile(scaler_y):
         loader.load_to_path("scaler_y.json", scaler_y)
     scaler_y = Scaler.load(scaler_y)
 
+    logging.info("Scaler Y loaded")
+
     assert X.shape[1] == 2, f"Expected 2 features, got {X.shape[1]}"
 
     X_scaled = scaler_x.transform(X)
     X_tensor = torch.FloatTensor(X_scaled).reshape(1, -1)
+
+    logging.info("Data transformed")
     y_pred = model(X_tensor)
+    logging.info("Prediction made %s", y_pred.detach().numpy())
     return scaler_y.inverse_transform(y_pred.detach().numpy().reshape(-1, 1)).ravel()
 
 
