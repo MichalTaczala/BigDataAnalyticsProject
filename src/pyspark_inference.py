@@ -26,7 +26,8 @@ input_schema = StructType([
     StructField("arrivalAirport", StringType(), True),
     StructField("callsign", StringType(), True),
     StructField("icao24", StringType(), True),
-    StructField("sessionID", StringType(), True),
+    StructField("session_id", StringType(), True),
+    StructField("host_id", StringType(), True)
 ])
 
 # Read from Kafka
@@ -86,7 +87,8 @@ def predict_batch(df, batch_id):
                 for key, value in zip(datapoint.get_attribute_names(), datapoint.get_values())
             }
             d["time_to_arrival"] = y
-            d["sessionID"] = row["sessionID"]
+            d["session_id"] = row["session_id"]
+            d["host_id"] = row["host_id"]
             d["icao24"] = row["icao24"]
             kafka_producer.send(output_topic, value=d)
 
