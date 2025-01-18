@@ -46,7 +46,7 @@ def inference(X: np.ndarray) -> np.ndarray:
     assert X.shape[1] == 2, f"Expected 2 features, got {X.shape[1]}"
 
     X_scaled = scaler_x.transform(X)
-    X_tensor = torch.FloatTensor(X_scaled).reshape(1, -1)
+    X_tensor = torch.FloatTensor(X_scaled).reshape(-1, 2)
 
     logging.info("Data transformed %s", X_tensor)
     y_pred = model(X_tensor)
