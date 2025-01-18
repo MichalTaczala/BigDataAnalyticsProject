@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, redirect, url_for
 from opensky_api import OpenSkyApi
 import time
 import random
@@ -9,6 +9,7 @@ import logging
 import argparse
 from typing import Optional, Tuple, List, Dict
 from dataclasses import dataclass
+import os
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -17,28 +18,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-#app.secret_key = 'your-secret-key-here'  
+app.secret_key = 'big_data'
 
 class Config:
     SHOW_UI_ERRORS = False
-    NIFI_ENDPOINT = "https://nifiexample?"
+    NIFI_ENDPOINT = "http://34.116.172.181:9091/contentListener"
 
 @dataclass
 class FlightData:
     icao24: str
-    firstSeen: int
-    estDepartureAirport: Optional[str]
-    lastSeen: int
-    estArrivalAirport: Optional[str]
-    callsign: Optional[str]
-    estDepartureAirportHorizDistance: Optional[int]
-    estDepartureAirportVertDistance: Optional[int]
-    estArrivalAirportHorizDistance: Optional[int]
-    estArrivalAirportVertDistance: Optional[int]
-    departureAirportCandidatesCount: Optional[int]
-    arrivalAirportCandidatesCount: Optional[int]
+    timestamp: int
     host_id: str
-    request_id: str
+    session_id: str
 
 class FlightTrackerError(Exception):
     pass
@@ -56,17 +47,18 @@ def generate_host_id() -> str:
         logger.error(f"Error generating host ID: {str(e)}")
         raise FlightTrackerError("Failed to generate host ID")
 
-def generate_request_id() -> str:
-    """Generate a unique request ID for each flight check"""
+def generate_session_id() -> str:
+    """Generate a unique session ID for each flight check"""
     try:
         return str(uuid.uuid4())
     except Exception as e:
-        logger.error(f"Error generating request ID: {str(e)}")
-        raise FlightTrackerError("Failed to generate request ID")
+        logger.error(f"Error generating session ID: {str(e)}")
+        raise FlightTrackerError("Failed to generate session ID")
 
-def get_flights_data() -> Tuple[List[str], Dict[str, object]]:
+def get_flights_data() -> Tuple[List[str], Dict[str, object], int]:
     """
     Get flight data from OpenSky API 
+    Returns tuple of flight IDs, flight map, and current timestamp
     """
     try:
         api = OpenSkyApi()
@@ -78,13 +70,13 @@ def get_flights_data() -> Tuple[List[str], Dict[str, object]]:
         
         if not flights:
             logger.warning("No flight data received from OpenSky API")
-            return [], {}
+            return [], {}, current_time
             
         # Create a mapping of flight IDs to full flight objects
         flight_map = {flight.icao24: flight for flight in flights}
         flight_ids = list(flight_map.keys())
         
-        return flight_ids, flight_map
+        return flight_ids, flight_map, current_time
     except Exception as e:
         logger.error(f"Error fetching flight data: {str(e)}")
         raise FlightDataError("Failed to fetch flight data from OpenSky API")
@@ -92,39 +84,29 @@ def get_flights_data() -> Tuple[List[str], Dict[str, object]]:
 def get_random_delay() -> float:
     return round(random.uniform(0, 120), 1)
 
-def send_flight_data_to_nifi(flight, host_id: str, request_id: str, nifi_endpoint: str) -> Tuple[bool, Optional[str]]:
+def send_flight_data_to_nifi(flight, host_id: str, session_id: str, timestamp: int, nifi_endpoint: str) -> Tuple[bool, Optional[str]]:
     """
-    Send flight data to NiFi endpoint with host and request IDs
+    Send flight data to NiFi endpoint with host_id, session_id, icao24 and request timestamp
     
     Returns:
         Tuple[bool, Optional[str]]: (success status, error message if any)
     """
     try:
-        logger.info(f"Preparing flight data for NiFi - Flight: {flight.icao24}, Host ID: {host_id}, Request ID: {request_id}")
+        logger.info(f"Preparing flight data for NiFi - Flight: {flight.icao24}, Host ID: {host_id}, Session ID: {session_id}")
         
         flight_data = FlightData(
             icao24=flight.icao24,
-            firstSeen=flight.firstSeen,
-            estDepartureAirport=flight.estDepartureAirport,
-            lastSeen=flight.lastSeen,
-            estArrivalAirport=flight.estArrivalAirport,
-            callsign=flight.callsign,
-            estDepartureAirportHorizDistance=flight.estDepartureAirportHorizDistance,
-            estDepartureAirportVertDistance=flight.estDepartureAirportVertDistance,
-            estArrivalAirportHorizDistance=flight.estArrivalAirportHorizDistance,
-            estArrivalAirportVertDistance=flight.estArrivalAirportVertDistance,
-            departureAirportCandidatesCount=flight.departureAirportCandidatesCount,
-            arrivalAirportCandidatesCount=flight.arrivalAirportCandidatesCount,
+            timestamp=timestamp,
             host_id=host_id,
-            request_id=request_id
+            session_id=session_id
         )
 
-        flight_dict = {k: v for k, v in flight_data.__dict__.items() if v is not None}
+        flight_dict = flight_data.__dict__
         
         headers = {
             'Content-Type': 'application/json',
             'X-Host-ID': host_id,
-            'X-Request-ID': request_id
+            'X-Session-ID': session_id
         }
         
         logger.debug(f"Sending request to NiFi endpoint: {nifi_endpoint}")
@@ -137,7 +119,7 @@ def send_flight_data_to_nifi(flight, host_id: str, request_id: str, nifi_endpoin
         )
         
         response.raise_for_status()
-        logger.info(f"Successfully sent flight data to NiFi - Request ID: {request_id}")
+        logger.info(f"Successfully sent flight data to NiFi - Session ID: {session_id}")
         return True, None
         
     except requests.exceptions.RequestException as e:
@@ -158,17 +140,21 @@ def before_request():
     except Exception as e:
         logger.error(f"Error in before_request: {str(e)}")
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
+    return redirect(url_for('flight_data'))
+
+@app.route('/flight-data', methods=['GET', 'POST'])
+def flight_data():
     flight_list = []
     selected_flight = None
     delay = None
-    request_id = None
+    session_id = None
     error_message = None
     
     try:
-        flight_list, flight_map = get_flights_data()
-        logger.debug(f"Retrieved {len(flight_list)} flights")
+        flight_list, flight_map, request_timestamp = get_flights_data()
+        logger.debug(f"Retrieved {len(flight_list)} flights at timestamp {request_timestamp}")
         
         if request.method == 'POST':
             selected_flight = request.form.get('flight')
@@ -177,13 +163,14 @@ def index():
                 
                 if selected_flight in flight_map:
                     delay = get_random_delay()
-                    request_id = generate_request_id()
+                    session_id = generate_session_id()
                     
                     nifi_endpoint = Config.NIFI_ENDPOINT
                     success, error = send_flight_data_to_nifi(
                         flight_map[selected_flight],
                         session['host_id'],
-                        request_id,
+                        session_id,
+                        request_timestamp,
                         nifi_endpoint
                     )
                     if not success:
@@ -204,22 +191,22 @@ def index():
                          selected_flight=selected_flight,
                          delay=delay,
                          host_id=session.get('host_id'),
-                         request_id=request_id,
+                         session_id=session_id,
                          error_message=error_message if Config.SHOW_UI_ERRORS else None,
                          show_errors=Config.SHOW_UI_ERRORS)
 
 def main():
-    parser = argparse.ArgumentParser(description='Flight Tracker Application')
-    parser.add_argument('--show-errors', action='store_true', 
-                      help='Enable error messages in the UI')
-    parser.add_argument('--port', type=int, default=5000,
-                      help='Port to run the application on')
-    parser.add_argument('--host', default='127.0.0.1',
-                      help='Host to run the application on')
-    parser.add_argument('--debug', action='store_true',
-                      help='Run in debug mode')
+   # parser = argparse.ArgumentParser(description='Flight Tracker Application')
+   # parser.add_argument('--show-errors', action='store_true', 
+   #                   help='Enable error messages in the UI')
+   # parser.add_argument('--port', type=int, default=5000,
+   #                   help='Port to run the application on')
+   # parser.add_argument('--host', default='127.0.0.1',
+   #                   help='Host to run the application on')
+   # parser.add_argument('--debug', action='store_true',
+   #                   help='Run in debug mode')
     
-    args = parser.parse_args()
+   # args = parser.parse_args()
     
     Config.SHOW_UI_ERRORS = args.show_errors
     
@@ -227,8 +214,8 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
     else:
         logging.getLogger().setLevel(logging.INFO)
-    
-    app.run(host=args.host, port=args.port, debug=args.debug)
+    port = int(os.envrion.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=True)
 
 if __name__ == '__main__':
     main()
