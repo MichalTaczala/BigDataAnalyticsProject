@@ -61,7 +61,7 @@ def get_data(flights: list[FlightInfo]) -> list[CombinedDatapoint]:
 
     data: list[CombinedDatapoint] = []
     for flight in flights:
-        datapoints = collector.flight_data.get_flight_datapoints(flight)
+        datapoints = collector.flight_data.get_flight_datapoints(flight, ignore_min_distance=True)
         if not datapoints:
             raise ValueError(f"Missing datapoints for flight {flight.icao24}")
 

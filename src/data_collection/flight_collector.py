@@ -48,7 +48,7 @@ class FlightCollector:
     def process_flights(self, flights: list[FlightInfo], output_file: str) -> None:
         """Convert flights to FlightDatapoints and save them to CSV file"""
         for flight in flights:
-            datapoints = self.flight_data.get_flight_datapoints(flight, ignore_min_distance=True)
+            datapoints = self.flight_data.get_flight_datapoints(flight)
             if not datapoints:
                 logger.warning("missing datapoints", icao24=flight.icao24)
                 continue
