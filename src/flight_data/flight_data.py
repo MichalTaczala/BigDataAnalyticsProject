@@ -128,7 +128,7 @@ class FlightData:
                     heading=path[i][4],
                     distance_to_destination=distances_to_destination[i],
                     arrival_time=arrival_time,
-                    time_to_arrival=arrival_time-path[i][0],
+                    time_to_arrival=arrival_time-path[i][0] if arrival_time is not None else None,
                 )
             )
             last_saved_datapoint = i
