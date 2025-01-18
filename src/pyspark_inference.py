@@ -87,6 +87,7 @@ def predict_batch(df, batch_id):
             }
             d["time_to_arrival"] = y
             d["sessionID"] = row["sessionID"]
+            d["icao24"] = row["icao24"]
             kafka_producer.send(output_topic, value=d)
 
             logger.info("Sent prediction to Kafka: %s", d)
