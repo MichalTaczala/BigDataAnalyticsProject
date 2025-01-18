@@ -5,6 +5,8 @@ import logging
 from kafka import KafkaProducer
 import json
 
+import config
+from flight_data.airports_data import AirportData
 from inference import inference, get_data, get_features
 from flight_data.models import FlightInfo
 
@@ -48,6 +50,7 @@ kafka_producer = KafkaProducer(
     bootstrap_servers=kafka_broker,
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
+airports = AirportData(config.AIRPORTS_DATA)
 
 # Apply inference function
 def predict_batch(df, batch_id):
@@ -64,7 +67,7 @@ def predict_batch(df, batch_id):
                 row['lastSeen'],
                 row['arrivalAirport'],
                 row['callsign']
-            ) for row in rows if row['icao24'] is not None and row['lastSeen'] is not None and row['arrivalAirport'] is not None
+            ) for row in rows if row['icao24'] is not None and row['lastSeen'] is not None and row['arrivalAirport'] is not None and airports.is_airport(row['arrivalAirport'])
         ]
         logger.info("Flight: %s", flights)
         if not flights:
@@ -81,7 +84,8 @@ def predict_batch(df, batch_id):
         y_pred = list(map(float, inference(X)))
         logger.info("Predictions: %s", y_pred)
 
-        for datapoint, y, row in zip(data, y_pred, rows):
+        for datapoint, y in zip(data, y_pred):
+            row = df.filter(df.icao24 == datapoint.flight.icao24).first()
             d = {
                 key: value
                 for key, value in zip(datapoint.get_attribute_names(), datapoint.get_values())
