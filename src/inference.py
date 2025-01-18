@@ -1,15 +1,19 @@
 import torch
 import os
 
-from PIL.ImageOps import scale
-
+import config
 from model.scaler import Scaler
 from model.model import FlightNN
+from flight_data.models import FlightInfo
+from flight_data.airports_data import AirportData
+from data_collection.models import CombinedDatapoint
+from flight_data.flight_data import FlightData
+from data_collection.flight_collector import FlightCollector
 import numpy as np
 from gcp.load_file import GCSLoader
 
 
-def inference(X: np.ndarray) -> float:
+def inference(X: np.ndarray) -> np.ndarray:
     loader = GCSLoader(bucket_name="models-big-data-mini")
     best_model = "best_model.pth"
     if not os.path.isfile(best_model):
@@ -33,7 +37,28 @@ def inference(X: np.ndarray) -> float:
     X_scaled = scaler_x.transform(X)
     X_tensor = torch.FloatTensor(X_scaled).reshape(1, -1)
     y_pred = model(X_tensor)
-    return scaler_y.inverse_transform(y_pred.detach().numpy().reshape(-1, 1)).ravel()[0]
+    return scaler_y.inverse_transform(y_pred.detach().numpy().reshape(-1, 1)).ravel()
+
+
+def get_data(flights: list[FlightInfo]) -> list[CombinedDatapoint]:
+    airports = AirportData(config.AIRPORTS_DATA)
+    flight_data = FlightData(airports)
+    collector = FlightCollector(flight_data)
+
+    data: list[CombinedDatapoint] = []
+    for flight in flights:
+        datapoints = collector.flight_data.get_flight_datapoints(flight)
+        if not datapoints:
+            raise ValueError(f"Missing datapoints for flight {flight.icao24}")
+
+        combined_datapoints = collector.get_weather_data_for_flight_datapoints(datapoints)
+        data.append(combined_datapoints[-1])
+
+    return data
+
+
+def get_features(data: list[CombinedDatapoint]) -> np.ndarray:
+    return np.array([[datapoint.flight.distance_to_destination, datapoint.flight.horizontal_speed] for datapoint in data])
 
 
 if __name__ == "__main__":

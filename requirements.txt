@@ -29,3 +29,6 @@ logging
 argparse
 typing 
 dataclasses
+
+pyspark
+kafka-python
