@@ -53,10 +53,18 @@ def predict_batch(df, batch_id):
     try:
         logger.info("Processing batch %s", batch_id)
 
-        flights: list[FlightInfo] = []
-        for row in df.iterrows():
-            flight = FlightInfo(row["icao24"], row["lastSeen"], row["arrivalAirport"], row["callsign"])
-            flights.append(flight)
+        # Convert DataFrame to list of rows
+        rows = df.collect()
+
+        # Create FlightInfo objects
+        flights = [
+            FlightInfo(
+                row['icao24'],
+                row['lastSeen'],
+                row['arrivalAirport'],
+                row['callsign']
+            ) for row in rows
+        ]
 
         data = get_data(flights)
 
