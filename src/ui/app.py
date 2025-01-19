@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, session, redirect, url_for
 from opensky_api import OpenSkyApi
 import time
-import random
 import uuid
 import requests
 import json
@@ -11,6 +10,8 @@ from typing import Optional, Tuple, List, Dict
 from dataclasses import dataclass
 import os
 import pandas as pd
+from threading import Thread
+from queue import Queue
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -28,12 +29,13 @@ class AirportData:
     def is_airport(self, icao: str) -> bool:
         return icao in self._airports['ident'].values
 
-
 airport_data = AirportData("airports.csv")
 
 class Config:
     SHOW_UI_ERRORS = False
     NIFI_ENDPOINT = "http://34.116.172.181:9091/contentListener"
+    NIFI_GET_ENDPOINT = "http://34.116.172.181:8086"
+    MAX_NULL_RESPONSES = 10
 
 @dataclass
 class FlightData:
@@ -95,8 +97,38 @@ def get_flights_data() -> Tuple[List[str], Dict[str, object], int]:
         logger.error(f"Error fetching flight data: {str(e)}")
         raise FlightDataError("Failed to fetch flight data from OpenSky API")
 
-def get_random_delay() -> float:
-    return round(random.uniform(0, 120), 1)
+def get_time_to_arrival(session_id: str) -> dict:
+    """Get time to arrival data from NiFi endpoint"""
+    try:
+        response = requests.get(
+            Config.NIFI_GET_ENDPOINT,
+            headers={'X-Session-ID': session_id},
+            timeout=5
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error fetching time to arrival: {str(e)}")
+        return {"time_to_arrival": "null"}
+
+def poll_arrival_time(session_id: str, result_queue: Queue):
+    """Poll the NiFi endpoint every 2 seconds for arrival time"""
+    null_count = 0
+    while null_count < Config.MAX_NULL_RESPONSES:
+        data = get_time_to_arrival(session_id)
+        
+        if data.get("time_to_arrival") == "null":
+            null_count += 1
+        else:
+            null_count = 0
+            result_queue.put(data)
+            return
+            
+        if null_count >= Config.MAX_NULL_RESPONSES:
+            result_queue.put({"error": "Sorry we couldn't retrieve the data for this flight"})
+            return
+            
+        time.sleep(2)
 
 def send_flight_data_to_nifi(flight, host_id: str, session_id: str, timestamp: int, nifi_endpoint: str) -> Tuple[bool, Optional[str]]:
     """
@@ -165,9 +197,9 @@ def index():
 def flight_data():
     flight_list = []
     selected_flight = None
-    delay = None
     session_id = None
     error_message = None
+    time_to_arrival = None
     
     try:
         flight_list, flight_map, request_timestamp = get_flights_data()
@@ -179,18 +211,41 @@ def flight_data():
                 logger.debug(f"Processing flight: {selected_flight}")
                 
                 if selected_flight in flight_map:
-                    delay = get_random_delay()
                     session_id = generate_session_id()
                     
-                    nifi_endpoint = Config.NIFI_ENDPOINT
+                    # Send data to NiFi
                     success, error = send_flight_data_to_nifi(
                         flight_map[selected_flight],
                         session['host_id'],
                         session_id,
                         request_timestamp,
-                        nifi_endpoint
+                        Config.NIFI_ENDPOINT
                     )
-                    if not success:
+                    
+                    if success:
+                        # Start polling for arrival time
+                        result_queue = Queue()
+                        polling_thread = Thread(
+                            target=poll_arrival_time,
+                            args=(session_id, result_queue)
+                        )
+                        polling_thread.daemon = True
+                        polling_thread.start()
+                        
+                        # Wait for result
+                        result = result_queue.get(timeout=30)  # 30 second timeout
+                        if "error" in result:
+                            error_message = result["error"]
+                        else:
+                            # Convert seconds to minutes, take absolute value, and round
+                            try:
+                                time_value = float(result["time_to_arrival"])
+                                time_in_minutes = abs(time_value) / 60  # Convert seconds to minutes
+                                time_to_arrival = str(round(time_in_minutes))  # Round to nearest minute
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Error formatting time value: {str(e)}")
+                                error_message = "Error processing arrival time"
+                    else:
                         error_message = error
                 else:
                     logger.warning(f"Selected flight {selected_flight} not found in current data")
@@ -206,7 +261,7 @@ def flight_data():
     return render_template('index.html', 
                          flights=flight_list,
                          selected_flight=selected_flight,
-                         delay=delay,
+                         time_to_arrival=time_to_arrival,
                          host_id=session.get('host_id'),
                          session_id=session_id,
                          error_message=error_message if Config.SHOW_UI_ERRORS else None,

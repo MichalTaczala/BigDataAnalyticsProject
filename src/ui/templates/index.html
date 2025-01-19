@@ -69,10 +69,10 @@
             <span class="id-label">Host ID:</span>
             <span class="id-value">{{ host_id }}</span>
         </p>
-        {% if request_id %}
+        {% if session_id %}
         <p>
-            <span class="id-label">Last Request ID:</span>
-            <span class="id-value">{{ request_id }}</span>
+            <span class="id-label">Session ID:</span>
+            <span class="id-value">{{ session_id }}</span>
         </p>
         {% endif %}
     </div>
@@ -97,11 +97,11 @@
         <button type="submit" class="submit-btn">Check Delay</button>
     </form>
 
-    {% if selected_flight and delay is not none %}
+    {% if selected_flight and time_to_arrival %}
     <div class="delay-info">
         <h2>Flight Information</h2>
         <p>Flight icao24: <strong>{{ selected_flight }}</strong></p>
-        <p>Time to land: <strong>{{ delay }} minutes</strong></p>
+        <p>Time to land: <strong>{{ time_to_arrival }} minutes</strong></p>
     </div>
     {% endif %}
 </body>
