@@ -77,3 +77,19 @@ class GCSLoader:
             list: List of file paths
         """
         return [blob.name for blob in self.bucket.list_blobs(prefix=prefix)]
+
+    def upload_from_path(self, local_path: str, blob_path: str, content_type: str | None = None) -> None:
+        """
+        Upload file from local path to GCS bucket
+
+        Args:
+            local_path (str): Local path of file to upload
+            blob_path (str): Destination path in bucket
+            content_type (str, optional): Content type of the file. If None, will be auto-detected
+        """
+        logging.info(f"Uploading {local_path} to {blob_path}")
+        blob = self.bucket.blob(blob_path)
+
+        # Upload the file
+        blob.upload_from_filename(local_path, content_type=content_type)
+        logging.info(f"Upload complete: {blob_path}")
